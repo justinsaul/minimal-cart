@@ -14,23 +14,14 @@ class <%= migration_name %> < ActiveRecord::Migration
       table.column :city, :string
       table.column :shipping_method, :string
     end
-    
-    
+
+
     # orders 
     create_table :orders do |table|
       table.column :transaction_id, :integer
-      table.column :product_id, :integer
       table.column :quantity, :integer
-    end
-    
-    
-    # products
-    create_table :products do |table|
-      table.column :name, :string
-      table.column :byline, :string
-      table.column :description, :text
-      table.column :price, :integer
-      table.column :weight, :integer
+      table.column :orderable_id, :integer
+      table.column :orderable_type, :string
     end
     
     
@@ -78,7 +69,6 @@ class <%= migration_name %> < ActiveRecord::Migration
   def self.down
     drop_table :customers
     drop_table :orders
-    drop_table :products
     drop_table :shopping_transactions
     drop_table :shopping_transaction_statuses
     drop_table :country_groups

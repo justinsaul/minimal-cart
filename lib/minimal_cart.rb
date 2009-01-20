@@ -16,26 +16,25 @@ module MinimalCart
   end
 
   module ShoppingCart
-    def add_cart(id)
+    def add_cart(item)
       begin
-        item = Product.find(id)
         get_cart.add item
       rescue Exception => e
         raise 'Error adding product to cart: ' + e.message
       end
     end
 
-    def remove_cart(id)
+    def remove_cart(item)
       begin
-        get_cart.remove id.to_i
+        get_cart.remove item.orderable_id
       rescue Exception => e
         raise 'Error removing product: ' + e.message
       end
     end
 
-    def update_cart(id, quantity)
+    def update_cart(item, quantity)
       begin
-        get_cart.update id, quantity
+        get_cart.update item.orderable_id, quantity
       rescue Exception => e
         raise 'Error updating the quantity of a product: ' + e.message
       end
@@ -185,6 +184,40 @@ module MinimalShipping
         shipping_group = CountryGroup.find_by_country(shipping.country)
         shipping_rate = ShippingRate.shipping_rate_from_weight_method_group total_weight, shipping.shipping_method, shipping_group
         return shipping_rate * 100 # pennies
+      end
+    end
+  end
+end
+
+module ActiveRecord
+  module Acts
+    module Orderable
+      def self.included(base)
+        base.extend(ClassMethods)
+      end
+      
+      module ClassMethods
+        def acts_as_orderable
+          has_many :orders, :as => :orderable
+          include ActiveRecord::Acts::Orderable::InstanceMethods
+        end
+      end
+            
+      module InstanceMethods
+        def orderable_id
+          "#{self.class.name}.#{id}"
+        end
+      end
+    end
+    module Shopper
+      def self.included(base)
+        base.extend(ClassMethods)
+      end
+
+      module ClassMethods
+        def acts_as_shopper
+          has_many :shopping_transactions, :as => :shopper
+        end
       end
     end
   end

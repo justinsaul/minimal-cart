@@ -16,10 +16,10 @@ class Cart
   end
 
   def add(product)
-    if @orders.key? product.id
-      @orders[product.id].quantity += 1
+    if @orders.key? product.orderable_id
+      @orders[product.orderable_id].quantity += 1
     else 
-      @orders[product.id] = Order.create_from product
+      @orders[product.orderable_id] = Order.create_from product
     end
     @price += product.price
     @weight += product.weight
