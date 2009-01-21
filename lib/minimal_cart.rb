@@ -16,15 +16,15 @@ module MinimalCart
   end
 
   module ShoppingCart
-    def add_cart(item)
+    def add_cart(orderable_id)
       begin
-        get_cart.add item
+        get_cart.add orderable_id
       rescue Exception => e
         raise 'Error adding product to cart: ' + e.message
       end
     end
 
-    def remove_cart(item)
+    def remove_cart(orderable_id)
       begin
         get_cart.remove item.orderable_id
       rescue Exception => e
@@ -32,7 +32,7 @@ module MinimalCart
       end
     end
 
-    def update_cart(item, quantity)
+    def update_cart(orderable_id, quantity)
       begin
         get_cart.update item.orderable_id, quantity
       rescue Exception => e

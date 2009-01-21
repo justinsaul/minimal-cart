@@ -7,7 +7,7 @@ class Order < ActiveRecord::Base
 
   def calc_price
     begin
-      return find_product(self.product_id).price * self.quantity
+      return self.find_product(self.product_id).price * self.quantity
     rescue
       return 'Unable to calculate the weight of a Product'
     end
@@ -15,23 +15,23 @@ class Order < ActiveRecord::Base
 
   def calc_weight
     begin
-      return find_product(self.product_id).weight * self.quantity
+      return self.find_product(self.product_id).weight * self.quantity
     rescue
       return 'Unable to calculate the weight of a Product'
     end
   end
 
   #static
-  def self.create_from(product)
+  def self.create_from(orderable_id)
     order = self.new
-    order.product_id = product.id
+    order.orderable = find_product(orderable_id)
     order.quantity = 1
     return order
   end
 
   private
   
-  def find_product(orderable_id)
+  def self.find_product(orderable_id)
     clazz, id = orderable_id.split('.')
     clazz.constantize.find(id)
   end

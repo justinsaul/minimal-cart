@@ -15,17 +15,17 @@ class Cart
     initialize
   end
 
-  def add(product)
-    if @orders.key? product.orderable_id
-      @orders[product.orderable_id].quantity += 1
+  def add(orderable_id)
+    if @orders.key? orderable_id
+      @orders[orderable_id].quantity += 1
     else 
-      @orders[product.orderable_id] = Order.create_from product
+      @orders[orderable_id] = Order.create_from orderable_id
     end
-    @price += product.price
-    @weight += product.weight
+    @price += @orders[orderable_id].orderable.price
+    @weight += @orders[orderable_id].orderable.weight
   end
 
-  def update(id, quantity)
+  def update(orderable_id, quantity)
     if quantity.to_i == 0
       remove(id)
     else
@@ -39,7 +39,7 @@ class Cart
     end
   end
 
-  def remove(id)
+  def remove(orderable_id)
     update_totals :subtract, id
     begin
       @orders.delete id
