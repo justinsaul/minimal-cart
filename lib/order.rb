@@ -7,7 +7,8 @@ class Order < ActiveRecord::Base
 
   def calc_price
     begin
-      return self.find_product(self.product_id).price * self.quantity
+      debugger
+      return orderable.price * self.quantity
     rescue
       return 'Unable to calculate the weight of a Product'
     end
@@ -15,7 +16,7 @@ class Order < ActiveRecord::Base
 
   def calc_weight
     begin
-      return self.find_product(self.product_id).weight * self.quantity
+      return orderable.weight * self.quantity
     rescue
       return 'Unable to calculate the weight of a Product'
     end

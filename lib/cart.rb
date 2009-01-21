@@ -27,22 +27,22 @@ class Cart
 
   def update(orderable_id, quantity)
     if quantity.to_i == 0
-      remove(id)
+      remove(orderable_id)
     else
-      update_totals :subtract, id
+      update_totals :subtract, orderable_id
       begin 
-        @orders[id].quantity = quantity.to_i
+        @orders[orderable_id].quantity = quantity.to_i
       rescue IndexError
         raise 'No order found on Cart.update'
       end
-      update_totals :add, id
+      update_totals :add, orderable_id 
     end
   end
 
   def remove(orderable_id)
-    update_totals :subtract, id
+    update_totals :subtract, orderable_id
     begin
-      @orders.delete id
+      @orders.delete orderable_id
     rescue IndexError
       raise 'No order found on Cart.remove'
     end

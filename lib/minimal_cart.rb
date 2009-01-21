@@ -28,7 +28,8 @@ module MinimalCart
       begin
         get_cart.remove orderable_id
       rescue Exception => e
-        raise 'Error removing product: ' + e.message
+        raise e
+    #    raise 'Error removing product: ' + e.message
       end
     end
 
