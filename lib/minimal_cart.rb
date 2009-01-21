@@ -26,7 +26,7 @@ module MinimalCart
 
     def remove_cart(orderable_id)
       begin
-        get_cart.remove item.orderable_id
+        get_cart.remove orderable_id
       rescue Exception => e
         raise 'Error removing product: ' + e.message
       end
@@ -34,7 +34,7 @@ module MinimalCart
 
     def update_cart(orderable_id, quantity)
       begin
-        get_cart.update item.orderable_id, quantity
+        get_cart.update orderable_id, quantity
       rescue Exception => e
         raise 'Error updating the quantity of a product: ' + e.message
       end
