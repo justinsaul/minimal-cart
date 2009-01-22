@@ -8,6 +8,7 @@ class <%= migration_name %> < ActiveRecord::Migration
       table.column :email, :string
       table.column :phone, :string
       table.column :street_address, :string
+      table.column :street_address2, :string
       table.column :zip_code, :string
       table.column :state, :string
       table.column :country, :string
