@@ -69,10 +69,7 @@ module MinimalCart
     def bill_to(customer, billing_info)
       begin
         billing = get_billing
-        #billing.customer = Customer.new(customer)
-        #billing.customer.save!
-        billing.customer = session[:ship_to]
-        
+        billing.customer = get_ship_to
         billing.card_type = billing_info[:credit_card]
         billing.card_number = billing_info[:card_number]
         billing.expiration_month = billing_info[:expiration_month]
