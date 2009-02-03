@@ -34,6 +34,8 @@ class <%= migration_name %> < ActiveRecord::Migration
       table.column :customer_id, :integer
       table.column :shopper_id, :integer
       table.column :shopper_type, :string
+      table.column :transaction_code, :string 
+      table.index :transaction_code, :unique => true
     end
     
     
