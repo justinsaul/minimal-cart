@@ -16,7 +16,8 @@ class Billing
   attr_accessor :cvn
   attr_accessor :expiration_month
   attr_accessor :expiration_year
-  attr_accessor :name
+  attr_accessor :first_name
+  attr_accessor :last_name
   attr_accessor :address1
   attr_accessor :address2
   attr_accessor :city
@@ -39,9 +40,11 @@ class Billing
 
   validates_presence_of :card_number, :message => 'You must enter a Credit Card Number'
   validates_presence_of :cvn, :message => 'You must enter your Credit Card Security Code'
+  validates_presence_of :card_type, :message => 'You must enter your Credit Card type'
   validates_presence_of :expiration_month, :message => 'You must enter your Credit Card expiration month'
   validates_presence_of :expiration_year, :message => 'You must enter your Credit Card expiration year'
-  validates_presence_of :name, :message => 'You must enter a billing name'
+  validates_presence_of :first_name, :message => 'You must enter a billing first name'
+  validates_presence_of :last_name, :message => 'You must enter a billing last name'
   validates_presence_of :address1, :message => 'You must enter a billing address'
   validates_presence_of :city, :message => 'You must enter a billing city'
   validates_presence_of :state, :message => 'You must enter a billing state or province'
