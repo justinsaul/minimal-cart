@@ -155,7 +155,8 @@ module MinimalCart
       #transaction
       transaction = ShoppingTransaction.new
       transaction.date = Time.now
-      transaction.customer = get_billing.customer
+      transaction.customer = get_ship_to
+      transaction.billing = get_billing
       transaction.shopping_transaction_status = ShoppingTransactionStatus.find_by_status('NEW')
       transaction.total = total_cart
       transaction.shopper = shopper 

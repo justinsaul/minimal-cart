@@ -2,6 +2,7 @@ require File.dirname(__FILE__) + '/../../../../spec/spec_helper'
 
 describe ShoppingTransaction do
   it 'should save the transaction code after creation without a prefix is prefix is undefined' do
+    TRANSACTION_CODE_PREFIX = nil
     t = ShoppingTransaction.new
     t.save
     id = t.id

@@ -19,6 +19,20 @@ def billing_info(attributes={})
   Billing.new(attributes)
 end
 
+def shipping_info(attributes={})
+  attributes = {
+    :first_name => 'Barry',
+    :last_name => 'Gurnsberg', 
+    :street_address => 'add1', 
+    :city => 'Phila', 
+    :state => 'PA', 
+    :country => 'US', 
+    :zip_code => '19101', 
+    :phone => '215-551-1212'
+  }.merge attributes
+  Customer.new(attributes)
+end
+
 def setup_test_gateway
   @gateway = ActiveMerchant::Billing::Gateway.new 'bogus'
   @auth_response = mock ActiveMerchant::Billing::Response, :null_object => true
@@ -89,6 +103,8 @@ describe MinimalCart, 'when using it in a controller' do
   before :each do
     setup_test_gateway
     stub!(:get_billing).and_return billing_info
+    stub!(:get_ship_to).and_return shipping_info
+    stub!(:get_cart).and_return Cart.new
     stub!(:total_cart).and_return 1000
     stub!(:get_gateway).and_return @gateway
     @transaction = mock_model ShoppingTransaction, :null_object => true
@@ -97,6 +113,18 @@ describe MinimalCart, 'when using it in a controller' do
     @auth_response.stub!(:to_yaml).and_return @auth_yaml_return.to_yaml
     @cap_response.stub!(:to_yaml).and_return @cap_yaml_return.to_yaml
   end
+
+  it 'check_out should save the transaction to the database' do
+    lambda do
+      check_out
+    end.should change(ShoppingTransaction, :count).by(1)
+  end    
+
+  it 'check_out should save the billing info to the database' do
+    lambda do
+      check_out
+    end.should change(Billing, :count).by(1)
+  end    
 
   it 'charge_card should write the responses to the db on success' do
     @auth_response.stub!(:success?).and_return true

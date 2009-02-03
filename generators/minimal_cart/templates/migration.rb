@@ -16,6 +16,21 @@ class <%= migration_name %> < ActiveRecord::Migration
       table.column :shipping_method, :string
     end
 
+    create_table :billings do |table|
+      table.column :first_name, :string
+      table.column :last_name, :string
+      table.column :phone, :string
+      table.column :address1, :string
+      table.column :address2, :string
+      table.column :zip, :string
+      table.column :state, :string
+      table.column :country, :string
+      table.column :city, :string
+      table.column :card_type, :string
+      table.column :obfuscated_card_number, :string
+      table.column :expiration_month, :integer
+      table.column :expiration_year, :integer
+    end 
 
     # orders 
     create_table :orders do |table|
@@ -32,6 +47,7 @@ class <%= migration_name %> < ActiveRecord::Migration
       table.column :status_transaction_id, :integer
       table.column :total, :integer
       table.column :customer_id, :integer
+      table.column :billing_id, :integer
       table.column :shopper_id, :integer
       table.column :shopper_type, :string
       table.column :transaction_code, :string 
