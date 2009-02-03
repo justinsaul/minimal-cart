@@ -1,9 +1,9 @@
-# See LICENSE file in the root for details
+#t See LICENSE file in the root for details
 class Cart
-  
   attr_reader :orders
   attr_reader :weight
   attr_reader :price 
+  alias :total :price
 
   def initialize
     @orders = Hash.new
