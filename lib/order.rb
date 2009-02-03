@@ -29,8 +29,6 @@ class Order < ActiveRecord::Base
     return order
   end
 
-  private
-
   def self.find_product(orderable_id)
     clazz, id = orderable_id.split('.')
     clazz.constantize.find(id)
