@@ -3,6 +3,40 @@ module MinimalCart
   require 'yaml'
   require 'active_merchant'
 
+  def get_gateway
+    config = Config.new
+    begin
+      gateway = ActiveMerchant::Billing::Base.gateway(config.name.to_s).new(config.options)
+    rescue
+      raise 'Invalid ActiveMerchant Gateway'
+    end
+    gateway
+  end
+
+  def create_credit_card(billing)
+    ActiveMerchant::Billing::CreditCard.new(
+      :first_name => billing.first_name, 
+      :last_name => billing.last_name, 
+      :number => billing.card_number, 
+      :month => billing.expiration_month, 
+      :year => billing.expiration_year, 
+      :type => billing.card_type, 
+      :verification_value => billing.cvn) 
+  end
+
+  def process_card(credit_card, billing, amount_to_charge, ip_address, gateway=get_gateway)
+    raise InvalidCreditCardError.new(credit_card) if !credit_card.valid?
+    options = {
+      :billing_address => {:name => billing.first_name + ' ' + billing.last_name, :address1 => billing.address1, :address2 => billing.address2, :city => billing.city, :state => billing.state, :country => billing.country, :zip => billing.zip, :phone => billing.phone},
+      :ip => ip_address
+    }
+    auth_response = gateway.authorize(amount_to_charge, credit_card, options)  
+    raise AuthorizationFailureError.new([auth_response]) unless auth_response.success?
+    cap_response = gateway.capture(amount_to_charge, auth_response.authorization)
+    raise CaptureFailureError.new([auth_response, cap_response]) unless cap_response.success?
+    [ auth_response, cap_response ]
+  end 
+
   # included is called from the Controller when you inject this module
   def self.included(base)
     base.extend ClassMethods
@@ -28,8 +62,7 @@ module MinimalCart
       begin
         get_cart.remove orderable_id
       rescue Exception => e
-        raise e
-    #    raise 'Error removing product: ' + e.message
+        raise 'Error removing product: ' + e.message
       end
     end
 
@@ -100,58 +133,77 @@ module MinimalCart
       return session[:ship_to] ||= Customer.new()
     end
 
-    private
-    def process_card
-      billing = get_billing
-      customer = billing.customer
-      credit_card = ActiveMerchant::Billing::CreditCard.new(:first_name => customer.first_name, :last_name => customer.last_name, :number => billing.card_number, :month => billing.expiration_month, :year => billing.expiration_year, :type => billing.card_type)
-      raise 'Credit card is invalid.' if !credit_card.valid?
-      options = {
-        :address => {},
-        :billing_address => {:name => customer.first_name + ' ' + customer.last_name, :address1 => customer.street_address, :city => customer.city, :state => customer.state, :country => customer.country, :zip => customer.zip_code, :phone => customer.phone}
-      }
-      config = Config.new
+    def charge_card(transaction, ip_address)
       begin
-        gateway = ActiveMerchant::Billing::Base.gateway(config.name.to_s).new(:login => config.user_name.to_s, :password => config.password.to_s)    
-      rescue
-        raise 'Invalid ActiveMerchant Gateway'
+        responses = process_card create_credit_card(get_billing), get_billing, total_cart, ip_address, get_gateway
+        responses.each do |r|
+          response_rec = GatewayResponse.new(:success => r.success?, :response_object => r)
+          response_rec.shopping_transaction = transaction
+          response_rec.save!
+        end
+      rescue GatewayFailureError
+        $!.responses.each do |r|
+          response_rec = GatewayResponse.new(:success => r.success?, :response_object => r)
+          response_rec.shopping_transaction = transaction
+          response_rec.save!
+        end
+        raise $!
       end
-      amount_to_charge = total_cart
-      response = gateway.authorize(amount_to_charge, credit_card, options)  
-      if response.success?
-        gateway.capture(amount_to_charge, response.authorization)
-      else 
-        raise "ActiveMerchant failed to authorize the charge ( #{amount_to_charge}$ ): " + response.message
-      end
-    end 
+    end
 
-    def check_out
-      #customer
-      raise 'Could not save Customer data' if !get_billing.customer.save
+    def check_out(shopper=nil)
       #transaction
       transaction = ShoppingTransaction.new
       transaction.date = Time.now
       transaction.customer = get_billing.customer
       transaction.shopping_transaction_status = ShoppingTransactionStatus.find_by_status('NEW')
       transaction.total = total_cart
+      transaction.shopper = shopper 
       transaction.save
       #orders
-      get_cart.orders.values.each {|o| o.shopping_transaction = transaction; o.customer = transaction.customer; o.save}
+      get_cart.orders.values.each do |o| 
+        o.shopping_transaction = transaction
+        o.customer = transaction.customer
+        o.save
+      end
+      transaction
     end
   end
   
   class Config
     attr_reader :name
-    attr_reader :user_name
-    attr_reader :password
+    attr_reader :options
     def initialize
-      config = YAML::load(File.open("#{RAILS_ROOT}/vendor/plugins/minimalcart/config/config.yml"))
-      raise "Please configure the ActiveMerchant Gateway" if config['merchant_account'] == nil
-      @name = config['merchant_account']['name'].to_s
-      @user_name = config['merchant_account']['user_name'].to_s
-      @password  = config['merchant_account']['password'].to_s
+      config = YAML::load(File.open("#{RAILS_ROOT}/config/minimal_cart.yml"))
+      raise "Please configure the ActiveMerchant Gateway" if config[RAILS_ENV] == nil
+      @options = {}
+      config[RAILS_ENV].each { |key, val| @options[key.to_sym] = val.to_s }
+      raise 'You must specify the name option in your MinimalCart config file' unless @options[:name]
+      @name = @options.delete :name
     end
   end 
+
+  class InvalidCreditCardError < RuntimeError
+    attr_reader :credit_card
+    
+    def initialize(credit_card)
+      @credit_card = credit_card
+    end
+  end
+
+  class GatewayFailureError < RuntimeError
+    attr_reader :responses
+
+    def initialize(responses)
+      @responses = responses
+    end
+  end
+
+  class AuthorizationFailureError < GatewayFailureError
+  end
+
+  class CaptureFailureError < GatewayFailureError
+  end
 end 
 
 
