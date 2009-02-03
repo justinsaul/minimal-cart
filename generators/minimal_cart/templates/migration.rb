@@ -32,6 +32,8 @@ class <%= migration_name %> < ActiveRecord::Migration
       table.column :status_transaction_id, :integer
       table.column :total, :integer
       table.column :customer_id, :integer
+      table.column :shopper_id, :integer
+      table.column :shopper_type, :string
     end
     
     
@@ -65,6 +67,13 @@ class <%= migration_name %> < ActiveRecord::Migration
       table.column :state, :string
       table.column :country, :string
     end
+
+    create_table :gateway_responses do |table|
+      table.column :shopping_transaction_id, :integer
+      table.column :success, :boolean
+      table.column :response_object, :text
+      table.timestamps
+    end
   end
   
   def self.down
@@ -75,5 +84,6 @@ class <%= migration_name %> < ActiveRecord::Migration
     drop_table :country_groups
     drop_table :shipping_rates
     drop_table :tax_rates
+    drop_table :gateway_responses
   end
 end
