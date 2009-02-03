@@ -23,6 +23,7 @@ class Cart
     end
     @price += @orders[orderable_id].orderable.price
     @weight += @orders[orderable_id].orderable.weight
+    @orders[orderable_id]
   end
 
   def update(orderable_id, quantity)
