@@ -1,0 +1,17 @@
+test:
+  name: paypal 
+  login: test_login_name
+  password: test_password
+  signature: test_sig
+
+development:
+  name: paypal 
+  login: test_login_name
+  password: test_password
+  signature: test_sig
+
+production:
+  name: paypal 
+  login: real_login_name
+  password: real_password
+  signature: real_sig

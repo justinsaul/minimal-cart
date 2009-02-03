@@ -7,6 +7,8 @@ class MinimalCartGenerator < Rails::Generator::NamedBase
         'db/migrate', 
         :assigns => { :migration_name => "Create#{class_name.pluralize.gsub(/::/, '')}" }, 
         :migration_file_name => "create_#{file_path.gsub(/\//, '_').pluralize}"
+      m.directory File.join('config')
+      m.template 'minimal_cart.yml', File.join('config', 'minimal_cart.yml')
     end
   end
   
