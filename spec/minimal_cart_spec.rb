@@ -102,8 +102,7 @@ describe MinimalCart, 'when using it in a controller' do
   include MinimalCart::ShoppingCart
   before :each do
     setup_test_gateway
-    stub!(:get_billing).and_return billing_info
-    stub!(:get_ship_to).and_return shipping_info
+    @controller.stub!(:session).and_return({ :bill_to => billing_info, :ship_to => shipping_info })
     stub!(:get_cart).and_return Cart.new
     stub!(:total_cart).and_return 1000
     stub!(:get_gateway).and_return @gateway

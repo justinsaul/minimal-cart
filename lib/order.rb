@@ -1,9 +1,10 @@
 # See LICENSE file in the root for details
 class Order < ActiveRecord::Base
   belongs_to :orderable, :polymorphic => true
-  belongs_to :customer
   belongs_to :shopping_transaction, :foreign_key => 'transaction_id'
   validates_numericality_of :quantity, :only_integer => true
+
+  before_save :store_price
 
   def calc_price
     begin
@@ -11,6 +12,14 @@ class Order < ActiveRecord::Base
     rescue
       return 'Unable to calculate the weight of a Product'
     end
+  end
+
+  def price
+    attributes['price'] ? attributes['price'] : calc_price
+  end
+
+  def store_price
+    self.price = calc_price
   end
 
   def calc_weight

@@ -4,6 +4,7 @@ class Cart
   attr_reader :weight
   attr_reader :price 
   alias :total :price
+  alias :subtotal :total # so we can use a Cart object like a ShoppingTransaction in views
 
   def initialize
     @orders = Hash.new
@@ -47,6 +48,25 @@ class Cart
     rescue IndexError
       raise 'No order found on Cart.remove'
     end
+  end
+
+  def contains_item_with_class(item, clazz)
+    @orders.keys.each do |key| 
+      return key if Order.find_product(key).item == item && @orders[key].orderable.class == clazz
+    end
+    return nil
+  end
+
+  def contains_shippable_product?
+    orders.each_value do |o|
+      return true unless o.orderable.respond_to? :shippable?
+      return true if o.orderable.shippable?
+    end
+    return false
+  end
+
+  def available_shipping_types
+    ShippingType.all
   end
 
   private

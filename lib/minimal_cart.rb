@@ -51,11 +51,7 @@ module MinimalCart
 
   module ShoppingCart
     def add_cart(orderable_id)
-      begin
         get_cart.add orderable_id
-      rescue Exception => e
-        raise 'Error adding product to cart: ' + e.message
-      end
     end
 
     def remove_cart(orderable_id)
@@ -83,39 +79,45 @@ module MinimalCart
     end
 
     def total_cart
-      tax = MinimalTax::Tax.calculate get_cart, get_ship_to
-      shipping = MinimalShipping::Shipping.calculate get_cart, get_ship_to
-      return subtotal_cart + tax + shipping
+      total = subtotal_cart + calculate_tax + (calculate_shipping || 0) - calculate_coupon_discount
+      total < 0 ? 0 : total
     end
 
-    def ship_to(shipping)
-      customer = Customer.new shipping
-      #raise 'Invalid Customer data in Customer object' if !customer.valid?
+    def ship_to(shipping_info)
+      shipping = Shipping.new shipping_info
       begin
-        customer.save!
-        session[:ship_to]  = customer
+        shipping.save!
+        session[:ship_to] = shipping
       rescue Exception => exp
-        raise 'Invalid Customer data in Customer object.<br>' + exp.to_s
+        raise 'Invalid Shipping data in Shipping object.<br>' + exp.to_s
       end
     end
-    
-    def bill_to(customer, billing_info)
-      begin
-        billing = get_billing
-        billing.customer = get_ship_to
-        billing.card_type = billing_info[:credit_card]
-        billing.card_number = billing_info[:card_number]
-        billing.expiration_month = billing_info[:expiration_month]
-        billing.expiration_year = billing_info[:expiration_year]
-        billing.cvn = billing_info[:card_verification_number]
-        
-        session[:bill_to] = billing
-      rescue Exception => exp
-        raise 'Invalid Customer data in Customer object.<br>' + exp.to_s
-        return
+
+    def calculate_tax
+       MinimalTax::Tax.calculate get_cart, get_ship_to
+    end
+
+    def calculate_shipping
+      MinimalShipping::Shipping.calculate get_cart, get_ship_to.country, get_ship_to.shipping_type_id
+    end
+
+    def calculate_coupon_discount
+      unless session[:coupons]
+        return 0
       end
-      
-      process_card
+
+      total_discount = 0
+      session[:coupons].each do |c|
+        case c.class.to_s
+        when 'FixedValueCoupon'
+          total_discount += c.value
+        when 'PercentageOffCoupon'
+          total_discount += (subtotal_cart*(c.value/100.0))
+        else
+          raise "Unknown coupon class #{c.class.to_s} for #{c.pretty_inspect}"
+        end
+      end
+      total_discount
     end
     
     private
@@ -130,12 +132,12 @@ module MinimalCart
 
     private
     def get_ship_to
-      return session[:ship_to] ||= Customer.new()
+      return session[:ship_to] ||= Shipping.new
     end
 
     def charge_card(transaction, ip_address)
       begin
-        responses = process_card create_credit_card(get_billing), get_billing, total_cart, ip_address, get_gateway
+        responses = process_card create_credit_card(get_billing), get_billing, total_cart*100, ip_address, get_gateway
         responses.each do |r|
           response_rec = GatewayResponse.new(:success => r.success?, :response_object => r)
           response_rec.shopping_transaction = transaction
@@ -155,20 +157,64 @@ module MinimalCart
       #transaction
       transaction = ShoppingTransaction.new
       transaction.date = Time.now
-      transaction.customer = get_ship_to
-      transaction.billing = get_billing
+      transaction.shipping = session[:ship_to]
+      transaction.billing = session[:bill_to]
       transaction.shopping_transaction_status = ShoppingTransactionStatus.find_by_status('NEW')
+      transaction.subtotal = subtotal_cart
       transaction.total = total_cart
+      transaction.tax_cost = calculate_tax
+      transaction.shipping_cost = calculate_shipping || 0
       transaction.shopper = shopper 
+      if session[:coupons]
+        transaction.coupons += session[:coupons]
+        transaction.coupon_discount = calculate_coupon_discount
+      end
       transaction.save
       #orders
       get_cart.orders.values.each do |o| 
         o.shopping_transaction = transaction
-        o.customer = transaction.customer
         o.save
       end
       transaction
     end
+
+    def close_out_coupons
+      if session[:coupons]
+        session[:coupons].each do |c| 
+          c.times_used ||= 0
+          c.times_used += 1
+          c.enabled = false if c.expire_after_use 
+          c.save
+        end
+      end
+    end
+
+    def add_coupon(coupon_code)
+      coupon_code = coupon_code.upcase
+      coupon = Coupon.find_by_coupon_code coupon_code
+      unless coupon
+        raise InvalidCouponError.new "#{coupon_code} is not a valid coupon code."
+      end
+      unless coupon.enabled
+        raise InvalidCouponError.new "The coupon #{coupon_code} is no longer valid."
+      end
+
+      # Can't combine percentage off coupons
+      if coupon.class.to_s == 'PercentageOffCoupon' && session[:coupons]
+        percentage_off_coupons = session[:coupons].select { |c| c.class.to_s == 'PercentageOffCoupon' }
+        unless percentage_off_coupons.nil? || percentage_off_coupons.empty?
+          raise InvalidCouponError.new "Sorry, you can't combine coupons that take a percentage off of your total. If you want to use coupon #{coupon_code}, you need to remove #{percentage_off_coupons.first.coupon_code.upcase} first."
+        end
+      end
+
+      session[:coupons] ||= []
+      session[:coupons] << coupon unless session[:coupons].include? coupon
+    end
+
+    def remove_coupon(coupon_code)
+      session[:coupons].reject! { |c| c.coupon_code == coupon_code }
+    end
+
   end
   
   class Config
@@ -183,6 +229,9 @@ module MinimalCart
       @name = @options.delete :name
     end
   end 
+
+  class InvalidCouponError < RuntimeError
+  end
 
   class InvalidCreditCardError < RuntimeError
     attr_reader :credit_card
@@ -205,8 +254,7 @@ module MinimalCart
 
   class CaptureFailureError < GatewayFailureError
   end
-end 
-
+end
 
 module MinimalTax
   class Tax
@@ -214,27 +262,9 @@ module MinimalTax
       def calculate(cart,shipping)
         raise 'Cannot calculate tax on an empty Cart' if cart == nil
         raise 'Cannot calculate tax without valid shipping values' if shipping == nil
-        tax_rate = TaxRate.find_by_country(shipping.country)
+        tax_rate = TaxRate.find_by_country_and_state(shipping.country, shipping.state)
         return 0 if tax_rate == nil
-        return total_tax = (cart.price * tax_rate) / 100.00 unless tax_rate == -1.0
-      end
-    end
-  end
-end
-
-
-module MinimalShipping
-  class Shipping
-    class << self 
-      def calculate(cart,shipping)
-        raise 'Cannot calculate shipping on an empty Cart' if cart == nil
-        raise 'Cannot calculate shipping without valid shipping values' if shipping == nil
-        shipping_rate = 0.0
-        #total_weight = cart.weight / 16.00 # convert from ounces to lbs
-        total_weight = cart.weight
-        shipping_group = CountryGroup.find_by_country(shipping.country)
-        shipping_rate = ShippingRate.shipping_rate_from_weight_method_group total_weight, shipping.shipping_method, shipping_group
-        return shipping_rate * 100 # pennies
+        return total_tax = (cart.price * tax_rate.rate) / 100.00 unless tax_rate == -1.0
       end
     end
   end

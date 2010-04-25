@@ -1,3 +1,6 @@
+require 'openssl'
+require 'base64'
+
 class Billing < ActiveRecord::Base
   attr_accessor :comments
   attr_accessor :card_number
@@ -14,12 +17,17 @@ class Billing < ActiveRecord::Base
   validates_presence_of :city, :message => 'You must enter a billing city'
   validates_presence_of :state, :message => 'You must enter a billing state or province'
   validates_presence_of :zip, :message => 'You must enter a billing ZIP or Postal code'
-  validates_presence_of :phone, :message => 'You must enter a billing phone number.'
 
-  before_create :store_masked_cc_number
+  before_create :store_masked_cc_number, :store_encrypted_cc_number
 
   def store_masked_cc_number
     self.obfuscated_card_number = ActiveMerchant::Billing::CreditCard.mask(card_number)
+  end
+
+  def store_encrypted_cc_number
+    public_key_file = File.join RAILS_ROOT, 'config/public.pem'
+    public_key = OpenSSL::PKey::RSA.new File.read(public_key_file)
+    self.encrypted_card_number = Base64.encode64(public_key.public_encrypt("#{card_number}/#{cvn}"))
   end
 
   def obfuscated_card_number
