@@ -36,6 +36,14 @@ module MinimalCart
     raise CaptureFailureError.new([auth_response, cap_response]) unless cap_response.success?
     [ auth_response, cap_response ]
   end 
+  
+  def process_paypal_express(amount, ip_address, express_token, payer_id)
+    PAYPAL_EXPRESS_GATEWAY.purchase(amount, {
+      :ip => ip_address,
+      :token => express_token,
+      :payer_id => payer_id
+    }) 
+  end
 
   # included is called from the Controller when you inject this module
   def self.included(base)
@@ -135,6 +143,14 @@ module MinimalCart
       return session[:ship_to] ||= Shipping.new
     end
 
+    def setup_paypal_express(ip_address, return_url, cancel_url)
+      response = PAYPAL_EXPRESS_GATEWAY.setup_purchase(total_cart*100, 
+                  :ip => ip_address, 
+                  :return_url => return_url,
+                  :cancel_return_url => cancel_url)
+      redirect_to PAYPAL_EXPRESS_GATEWAY.redirect_url_for(response.token) and return
+    end
+    
     def charge_card(transaction, ip_address)
       begin
         responses = process_card create_credit_card(get_billing), get_billing, total_cart*100, ip_address, get_gateway
@@ -151,6 +167,25 @@ module MinimalCart
         end
         raise $!
       end
+    end
+    
+    def charge_paypal_express(transaction, ip_address, express_token, payer_id = nil)
+      begin
+        responses = process_paypal_express total_cart*100, ip_address, express_token, payer_id
+        responses.each do |r|
+          response_rec = GatewayResponse.new(:success => r.success?, :response_object => r)
+          response_rec.shopping_transaction = transaction
+          response_rec.save!
+        end
+      rescue GatewayFailureError
+        $!.responses.each do |r|
+          response_rec = GatewayResponse.new(:success => r.success?, :response_object => r)
+          response_rec.shopping_transaction = transaction
+          response_rec.save!
+        end
+        raise $!
+      end
+      
     end
 
     def check_out(shopper=nil)

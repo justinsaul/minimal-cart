@@ -33,4 +33,10 @@ class Billing < ActiveRecord::Base
   def obfuscated_card_number
     attributes['obfuscated_card_number'].blank? ? ActiveMerchant::Billing::CreditCard.mask(card_number) : attributes['obfuscated_card_number']
   end
+  
+  def retrieve_encrypted_cc_number(password)
+    private_key_file = File.join RAILS_ROOT, 'config/private.pem'
+    private_key = OpenSSL::PKey::RSA.new(File.read(private_key_file),password)
+    return private_key.private_decrypt(Base64.decode64(encrypted_string))
+  end
 end

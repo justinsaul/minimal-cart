@@ -11,7 +11,6 @@ class ShoppingTransaction < ActiveRecord::Base
 
   after_create :add_transaction_code
 
-  acts_as_ferret :fields => [ :searchable_field ]
 
   # transaction_code is a human readable identifier of the transaction.  It's like an order number you get after checkout, but I can't call it that because Order means something else.
   # transaction_code is based on the id, so we can't call this until after save.  This guarantees uniqueness in the table.
@@ -28,31 +27,5 @@ class ShoppingTransaction < ActiveRecord::Base
     transaction_code.match(/^#{TRANSACTION_CODE_PREFIX}(.*)$/)[1]
   end
 
-  def searchable_field
-    searchable = ''
-    safe_append(searchable, transaction_code)
-    
-    safe_append searchable, billing.try(:email)
-    safe_append searchable, billing.try(:phone)
-    safe_append searchable, billing.try(:first_name)
-    safe_append searchable, billing.try(:last_name)
 
-    safe_append searchable, shipping.try(:email)
-    safe_append searchable, shipping.try(:phone)
-    safe_append searchable, shipping.try(:first_name)
-    safe_append searchable, shipping.try(:last_name)
-    
-    safe_append searchable, shopper.try(:login)
-    safe_append searchable, shopper.try(:email)
-    safe_append searchable, shopper.try(:name)
-    safe_append searchable, shopper.try(:first_name)
-    safe_append searchable, shopper.try(:last_name)
-  end
-
-  private
-
-  def safe_append(string, append, delim=' ')
-    string << append unless append.nil?
-    string << delim unless delim.nil?
-  end
 end

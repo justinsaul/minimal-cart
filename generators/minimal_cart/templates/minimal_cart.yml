@@ -15,3 +15,12 @@ production:
   login: real_login_name
   password: real_password
   signature: real_sig
+
+########LOAD THIS INTO YOUR ENV##############
+# paypal_options = {
+#     :login => "",
+#     :password => "",
+#     :signature => ""
+#   }
+#   ::PAYPAL_STANDARD_GATEWAY = ActiveMerchant::Billing::PaypalGateway.new(paypal_options)
+#   ::PAYPAL_EXPRESS_GATEWAY = ActiveMerchant::Billing::PaypalExpressGateway.new(paypal_options)
